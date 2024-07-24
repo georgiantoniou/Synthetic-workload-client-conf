@@ -6,9 +6,24 @@ To achieve this we implement a simple http multithreaded server in c. The server
 
 # Install dependencies
 
+```
+sudo apt-get update
+sudo apt-get install -y libssl-dev libz-dev luarocks make 
+sudo luarocks install luasocket
+```
 
-# Compile source code
+# Compile source code for http server
 
+```
+gcc -o http_server http_server.c -lpthread
+```
+
+# Compile source code for wrk2
+```
+cd ~/Synthetic-workload-client-conf/wrk2
+make
+sudo make install
+```
 
 # Configure Machines
 

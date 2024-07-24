@@ -27,7 +27,7 @@ def kill_server():
     ssh = SSHClient()
     ssh.load_system_host_keys()
     ssh.connect(str("node1"))
-    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("pkill server")
+    ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("pkill http_server")
     logging.info("Kill server output: " + ssh_stdin + ssh_stdout + ssh_stderr)
     ssh.close()
 
