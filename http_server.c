@@ -10,7 +10,6 @@
 #define BUFFER_SIZE 1024
 #define RESPONSE "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World\r\n"
 // #define RESPONSE "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
-//#define RESPONSE "HTTP/1.1 204 No Content\r\n\r\n"
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
