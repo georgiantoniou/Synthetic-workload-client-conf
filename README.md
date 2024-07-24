@@ -29,3 +29,9 @@ sudo make install
 
 
 # Run experiments
+
+Advised client (threads x connections) to match the server threads
+```
+sudo ./http_server thread_num wait_time_us
+
+```
