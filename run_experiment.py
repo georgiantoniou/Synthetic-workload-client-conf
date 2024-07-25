@@ -131,9 +131,9 @@ def run_multiple_experiments(root_results_dir, batch_name, system_conf, batch_co
 
     service_time = [1, 10, 100, 1000, 10000]
     exec_time = 120
-    num_threads_server = 10
-    num_threads_client = [1, 10, 40]
-    qps = [10, 100, 1000, 10000]
+    num_threads_server = 1
+    num_threads_client = [1]
+    qps = [10, 100, 1000, 10000, 100000]
 
     for server_time in service_time:
         for client_threads in num_threads_client:
