@@ -10,6 +10,12 @@ To achieve this we implement a simple http multithreaded server in c. The server
 sudo apt-get update
 sudo apt-get install -y libssl-dev libz-dev luarocks make 
 sudo luarocks install luasocket
+sudo apt install python3-pip
+pip3 install --upgrade setuptools
+sudo apt-get install python3.6-dev libmysqlclient-dev libpcap-dev libpq-dev
+pip3 install --upgrade pip3
+pip3 install --upgrade pip
+pip3 install paramiko
 ```
 
 # Compile source code for http server
