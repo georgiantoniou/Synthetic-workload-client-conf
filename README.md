@@ -16,12 +16,23 @@ sudo apt-get install python3.6-dev libmysqlclient-dev libpcap-dev libpq-dev
 pip3 install --upgrade pip3
 pip3 install --upgrade pip
 pip3 install paramiko
+sudo apt install libgsl-dev
 ```
 
 # Compile source code for http server
 
 ```
 gcc -o http_server http_server.c -lpthread
+```
+
+# Compile source code for http server with exponential response time
+```
+gcc -o http_server_exp http_server_exp.c -lgsl -lgslcblas -lm -lpthread
+```
+
+# Compile source code for http server with exponential response time and server side service time statistics
+```
+gcc -o http_server_exp_timer http_server_exp_timer.c -lgsl -lgslcblas -lm -lpthread
 ```
 
 # Compile source code for wrk2
