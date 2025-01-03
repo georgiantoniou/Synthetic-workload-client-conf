@@ -1,9 +1,13 @@
 local socket = require("socket")  -- Import the LuaSocket library
 
--- Initialize a unique log file for each thread
+-- Global thread counter
+local thread_counter = 0
+
+-- Assign a unique incremental ID for each thread
 setup = function(thread)
-    -- Initialize thread-specific variables
-    thread:set("id", thread:get("id") or math.random(100000)) -- Assign a unique ID for each thread
+    -- Increment the global thread counter and assign it to the thread
+    thread_counter = thread_counter + 1
+    thread:set("id", thread_counter)  -- Assign the counter value as the thread ID
 end
 
 -- This function will be called before each request is sent
@@ -16,6 +20,7 @@ end
 
 -- Initialize the log file for each thread
 init = function(args)
+    -- Create a unique log file for each thread using the thread's ID
     local log_file_name = "response_times_thread_" .. wrk.thread:get("id") .. ".txt"
     file = io.open(log_file_name, "w")
     file:write("Request Send Timestamp, Response Receive Timestamp, Response Time (us)\n")

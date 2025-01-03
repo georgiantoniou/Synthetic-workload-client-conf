@@ -99,7 +99,7 @@ void *handle_client(void *arg) {
         while ((bytes_read = read(client_socket, buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytes_read] = '\0';  // Null-terminate the read data
 
-
+            
             // Simulate service time
             double delay = generate_exponential(rng, lambda);
             sleep_microseconds((int)(delay * 1e6)); // Convert seconds to microseconds

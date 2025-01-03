@@ -78,6 +78,8 @@ void stop_timer(thread_data *data) {
 
 // Save execution times to a file
 void save_execution_times(int thread_id, thread_data *data) {
+    printf("irtaaaaaaaaa \n");
+    pthread_exit(1);
     char filename[64];
     snprintf(filename, sizeof(filename), "thread_%d_times.log", thread_id);
 
@@ -148,26 +150,21 @@ void *handle_client(void *arg) {
     set_real_time_priority(self);
 
     thread_data *data = (thread_data *)arg;
-    printf("irtaaaaaaa\n");
-    
-
+     
     gsl_rng *rng = data->rng;
     unsigned long seed = data->seed;
     int thread_id = data->thread_id;
-    
-    
     
     // Allocate memory for execution times
     data->execution_times = malloc(sizeof(double) * MAX_RECORDS_PER_THREAD);
     data->theoritical_delays = malloc(sizeof(double) * MAX_RECORDS_PER_THREAD);
     
+
     if (!data->execution_times) {
         perror("Failed to allocate memory for execution times");
         pthread_exit(NULL);
     }
     data->num_records = 0;
-
-    
 
     while (server_running) {
         int client_socket;
@@ -177,8 +174,10 @@ void *handle_client(void *arg) {
         while (queue_size == 0 && server_running) {
             pthread_cond_wait(&cond, &lock);
         }
-        if (server_running)
+        if (server_running) {
             client_socket = client_queue[--queue_size];
+            pthread_mutex_unlock(&lock);
+        }
         else
         {
             pthread_mutex_unlock(&lock);
@@ -190,9 +189,9 @@ void *handle_client(void *arg) {
         while ((bytes_read = read(client_socket, buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytes_read] = '\0';  // Null-terminate the read data
 
-
             // Simulate service time
             double delay = generate_exponential(rng, lambda);
+            
             start_timer(data);
             sleep_microseconds((int)(delay * 1e6)); // Convert seconds to microseconds
             stop_timer(data);
@@ -243,7 +242,6 @@ int main(int argc, char *argv[]) {
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
-
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
