@@ -41,6 +41,13 @@ cd ~/Synthetic-workload-client-conf/wrk2
 make
 sudo make install
 ```
+# Run wrk2 code
+```
+./wrk2/wrk -t1 -D exp -c1 -d20s -R10 http://node0:8080
+
+One thread, one connection, exponential interarrival time, 20 second duration (10 of which for calibration) 10 QPS server listening at node1 port 8080.
+
+```
 
 # Configure Machines
 
