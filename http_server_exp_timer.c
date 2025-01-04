@@ -29,9 +29,6 @@ int client_queue[BUFFER_SIZE];
 //Number of requests in the queue
 int queue_size = 0;
 
-// Wait time on the server side in MICROSECONDS
-int wait_time;
-
 // Number of threads on the server side
 int thread_pool_size;
 
@@ -52,11 +49,8 @@ typedef struct {
 // Signal handler to save execution times
 void handle_signal(int sig) {
     server_running = 0;  // Notify threads to stop
-   // Close the server socket
-    if (server_socket >= 0) {
-        close(server_socket);
-        printf("Server socket closed.\n");
-    }
+    close(server_socket);  // Close server socket
+    pthread_cond_broadcast(&cond);  // Wake all threads
 }
 
 // Start timing a request
@@ -78,8 +72,7 @@ void stop_timer(thread_data *data) {
 
 // Save execution times to a file
 void save_execution_times(int thread_id, thread_data *data) {
-    printf("irtaaaaaaaaa \n");
-    pthread_exit(1);
+    
     char filename[64];
     snprintf(filename, sizeof(filename), "thread_%d_times.log", thread_id);
 
@@ -151,10 +144,7 @@ void *handle_client(void *arg) {
 
     thread_data *data = (thread_data *)arg;
      
-    gsl_rng *rng = data->rng;
-    unsigned long seed = data->seed;
-    int thread_id = data->thread_id;
-    
+       
     // Allocate memory for execution times
     data->execution_times = malloc(sizeof(double) * MAX_RECORDS_PER_THREAD);
     data->theoritical_delays = malloc(sizeof(double) * MAX_RECORDS_PER_THREAD);
@@ -174,15 +164,13 @@ void *handle_client(void *arg) {
         while (queue_size == 0 && server_running) {
             pthread_cond_wait(&cond, &lock);
         }
-        if (server_running) {
-            client_socket = client_queue[--queue_size];
+        if (!server_running) {
             pthread_mutex_unlock(&lock);
+            break;
         }
-        else
-        {
-            pthread_mutex_unlock(&lock);
-            continue;
-        }
+        client_socket = client_queue[--queue_size];
+        pthread_mutex_unlock(&lock);
+        
         // Process the client connection
         char buffer[BUFFER_SIZE];
         ssize_t bytes_read;
@@ -190,7 +178,7 @@ void *handle_client(void *arg) {
             buffer[bytes_read] = '\0';  // Null-terminate the read data
 
             // Simulate service time
-            double delay = generate_exponential(rng, lambda);
+            double delay = gsl_ran_exponential(data->rng, 1 / lambda);
             
             start_timer(data);
             sleep_microseconds((int)(delay * 1e6)); // Convert seconds to microseconds
@@ -210,11 +198,12 @@ void *handle_client(void *arg) {
 
         close(client_socket);
     }
-    gsl_rng_free(rng);
-
+   
     // Save execution times upon termination
-    save_execution_times(thread_id, data);
+    save_execution_times(data->thread_id, data);
     free(data->execution_times);
+    free(data->theoritical_delays);
+    gsl_rng_free(data->rng);
     return NULL;
 }
 
@@ -242,6 +231,7 @@ int main(int argc, char *argv[]) {
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
+
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
@@ -268,16 +258,16 @@ int main(int argc, char *argv[]) {
 
     // Create a pool of threads
     pthread_t *thread_pool = malloc(thread_pool_size * sizeof(pthread_t));
+    thread_data thread_data_array[thread_pool_size];
     for (int i = 0; i < thread_pool_size; i++) {
-        thread_data per_thread_data;
-        per_thread_data.rng = gsl_rng_alloc(gsl_rng_default);
-        per_thread_data.seed = seed;
-        gsl_rng_set(per_thread_data.rng, per_thread_data.seed); //use same seed for each thread
-        per_thread_data.thread_id = i;
-        pthread_create(&thread_pool[i], NULL, handle_client, &per_thread_data);
+        thread_data_array[i].rng = gsl_rng_alloc(gsl_rng_default);
+        thread_data_array[i].seed = seed;
+        gsl_rng_set(thread_data_array[i].rng, thread_data_array[i].seed); //use same seed for each thread
+        thread_data_array[i].thread_id = i;
+        pthread_create(&thread_pool[i], NULL, handle_client, &thread_data_array[i]);
     }
 
-    while (1) {
+    while (server_running) {
         int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
         if (client_socket < 0) {
             perror("accept failed");
@@ -291,6 +281,10 @@ int main(int argc, char *argv[]) {
 
         // Signal a thread to handle the client
         pthread_cond_signal(&cond);
+    }
+
+    for (int i = 0; i < thread_pool_size; i++) {
+        pthread_join(thread_pool[i], NULL);
     }
 
     free(thread_pool);
