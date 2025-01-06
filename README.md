@@ -16,7 +16,8 @@ sudo apt-get install python3.6-dev libmysqlclient-dev libpcap-dev libpq-dev
 pip3 install --upgrade pip3
 pip3 install --upgrade pip
 pip3 install paramiko
-sudo apt install libgsl-dev
+sudo apt install -y libgsl-dev
+sudo apt install -y sysstat
 ```
 
 # Compile source code for http server

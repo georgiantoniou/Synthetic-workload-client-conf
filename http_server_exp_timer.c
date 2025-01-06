@@ -1,4 +1,6 @@
+#define _GNU_SOURCE
 #include <stdio.h>
+#include <sched.h> 
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -137,14 +139,32 @@ void set_real_time_priority(pthread_t thread) {
     }
 }
 
+// Function to assign a thread to a specific core
+void set_thread_affinity(int core_id) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);             // Initialize the CPU set
+    CPU_SET(core_id, &cpuset);     // Add the specific core to the set
+
+    pthread_t thread = pthread_self();
+    int result = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    if (result != 0) {
+        perror("pthread_setaffinity_np failed");
+    } else {
+        printf("Thread set to core %d\n", core_id);
+    }
+}
+
 void *handle_client(void *arg) {
     
     pthread_t self = pthread_self();
     set_real_time_priority(self);
 
     thread_data *data = (thread_data *)arg;
+
+    // Assign thread to a core (thread_id % number_of_cores)
+    int core_id = data->thread_id % sysconf(_SC_NPROCESSORS_ONLN);
+    set_thread_affinity(core_id);
      
-       
     // Allocate memory for execution times
     data->execution_times = malloc(sizeof(double) * MAX_RECORDS_PER_THREAD);
     data->theoritical_delays = malloc(sizeof(double) * MAX_RECORDS_PER_THREAD);
