@@ -289,7 +289,7 @@ do
         sleep 10
         
     done
-    exit;
+    
 
 done
 
