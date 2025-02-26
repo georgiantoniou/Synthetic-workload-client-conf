@@ -1,0 +1,87 @@
+#! /usr/bin/env stap
+
+global target_proc_begin_ts = 0
+global target_proc_end_ts = 0
+
+global idle_on;
+global cpu_idle      // Tracks idle state (1 for idle, 0 for active) for each CPU
+global all_idle      // Flag: 1 if all CPUs are idle, 0 otherwise
+global all_idle_ts   // Timestamp when the system entered the all-idle state
+global ncpus         // Total number of CPUs
+
+probe begin {
+    // Initialize number of CPUs. If cpu_online() isn’t available, set ncpus manually.
+    ncpus = 10
+    for (i = 0; i < ncpus; i++) {
+        cpu_idle[i] = 0
+    }
+    printf("Monitoring idle timestamps per CPU (total CPUs: %d)\n", ncpus)
+}
+
+// Helper function to check if all CPUs are idle
+function check_all_idle() {
+    for (i = 0; i < ncpus; i++) {
+        if (!cpu_idle[i])
+            return 0
+    }
+    return 1
+}
+
+probe scheduler.cpu_on
+{
+  if (task_execname(task_current()) == "http_server_exp") {
+    printf("%5d %5d TEST_ON\n",  gettimeofday_ns(), task_cpu(task_current()));
+  }
+
+  if (target_proc_begin_ts == 0 && task_execname(task_current()) == "http_server_exp") {
+    target_proc_begin_ts = gettimeofday_ns();
+    printf("%5d %5d TEST_START\n",  gettimeofday_ns(), task_cpu(task_prev));
+  }
+
+  if (idle) {
+    cpu_id = task_cpu(task_current());
+    idle_on[cpu_id] = gettimeofday_ns();
+    cpu_idle[cpu_id] = 1
+  }
+
+  if (!all_idle && check_all_idle()) {
+    all_idle = 1
+    all_idle_ts = gettimeofday_us()
+    printf("All CPUs idle starting at %dus\n", all_idle_ts)
+  }
+
+}
+
+probe scheduler.cpu_off
+{
+  if (task_execname(task_current()) == "http_server_exp") {
+    target_proc_end_ts = gettimeofday_ns();
+    printf("%5d %5d TEST_OFF\n",  gettimeofday_ns(), task_cpu(task_current()));
+  }
+
+  if (idle) {
+    ts_off = gettimeofday_ns();
+    cpu_id = task_cpu(task_current());
+    ts_on = idle_on[cpu_id];
+    if (ts_on > 0) {
+      printf("%5d %5d IDLE_ON\n%5d %5d IDLE_OFF\n",  ts_on, cpu_id, ts_off, cpu_id);
+      cpu_idle[cpu_id] = 0
+      // If the system was all idle but one CPU has now become active,
+      // mark the end of the global idle state.
+      if (all_idle && !check_all_idle()) {
+        printf("System leaves all-idle state at %dus (idle since %dus)\n", 
+                  gettimeofday_us(), all_idle_ts)
+        all_idle = 0
+      }
+    }
+  }
+}
+
+probe end
+{
+  foreach (cpu_id in idle_on)
+    printf("%5d %5d IDLE_ON\n",  idle_on[cpu_id], cpu_id);
+  printf("begin_ts %d\n", target_proc_begin_ts);
+  printf("end_ts   %d\n", target_proc_end_ts);
+  printf("duration_ns %d\n", target_proc_end_ts - target_proc_begin_ts);
+}

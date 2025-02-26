@@ -18,6 +18,20 @@ pip3 install --upgrade pip
 pip3 install paramiko
 sudo apt install -y libgsl-dev
 sudo apt install -y sysstat
+
+# Systemtap dependencies
+sudo apt install systemtap
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C8CAB6595FDFF622 
+codename=$(lsb_release -c | awk  '{print $2}')
+sudo tee /etc/apt/sources.list.d/ddebs.list << EOF
+deb http://ddebs.ubuntu.com/ ${codename}      main restricted universe multiverse
+deb http://ddebs.ubuntu.com/ ${codename}-security main restricted universe multiverse
+deb http://ddebs.ubuntu.com/ ${codename}-updates  main restricted universe multiverse
+deb http://ddebs.ubuntu.com/ ${codename}-proposed main restricted universe multiverse
+EOF
+
+sudo apt-get update
+sudo apt-get install linux-image-$(uname -r)-dbgsym
 ```
 
 # Compile source code for http server

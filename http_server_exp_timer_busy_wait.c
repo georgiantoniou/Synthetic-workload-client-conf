@@ -86,7 +86,7 @@ void save_execution_times(int thread_id, thread_data *data) {
     }
 
     for (int i = 0; i < data->num_records; i++) {
-        fprintf(file, "%f\n", data->execution_times[i%MAX_RECORDS_PER_THREAD]);
+        fprintf(file, "%.10f\n", data->execution_times[i%MAX_RECORDS_PER_THREAD]);
     }
 
     fclose(file);
@@ -103,7 +103,7 @@ void save_execution_times(int thread_id, thread_data *data) {
     }
 
     for (int i = 0; i < data->num_records; i++) {
-        fprintf(file, "%f\n", data->theoritical_delays[i%MAX_RECORDS_PER_THREAD]);
+        fprintf(file, "%.10f\n", data->theoritical_delays[i%MAX_RECORDS_PER_THREAD]);
     }
 
     fclose(file);
@@ -199,7 +199,7 @@ void *handle_client(void *arg) {
         }
         client_socket = client_queue[--queue_size];
         pthread_mutex_unlock(&lock);
-        
+                
         // Process the client connection
         char buffer[BUFFER_SIZE];
         ssize_t bytes_read;
