@@ -16,6 +16,8 @@ import statsmodels.api as sm
 
 
 statss = {}
+warmup=20
+queriespersecond=10
 
 def get_exp(name):
     return name.split("/")[-1]
@@ -29,6 +31,8 @@ def print_idle_time_systemtap(expstats, dir):
     idle_tres = os.path.join(path, "stap-idle-tres.csv")
     idle_tr = os.path.join(path, "stap-idle-tr.csv")
 
+    
+
     tres = {}
     tr = {}
 
@@ -36,7 +40,11 @@ def print_idle_time_systemtap(expstats, dir):
     for key in expstats[0].keys():
         temp = key
         break
+    
     max_runs= (max([int(k) for k in expstats[0][temp]['stap-idle'].keys()])) + 1
+
+    if not expstats[0][temp]['stap-idle'][0]:
+        return
 
     label1=[]
     label2=[]
@@ -194,17 +202,23 @@ def print_server_timer(expstats, dir):
                         row.append("")
             writer.writerow(row)   
 
-
     all_qq_data = []
+    # remove the first qps*warmup queries 
     # Check whether it passes the cramer von misses test for exponential distribution
     percentiles = [25, 50, 75, 90, 95]
     for qps in expstats[0]:
         for run in expstats[0][qps]['server-timer-actual']:
             temp=expstats[0][qps]['server-timer-actual'][run]
+            # # remove warmed up queries from temp
+            # if temp:
+            #     for i in range(warmup*queriespersecond):
+            #         temp.pop(0)
             for i in range(5):    
                 
                 if not temp:
-                    return
+                    continue
+
+                
                 percentile_to_remove_upper = 100 - i*5
                 percentile_to_remove_lower = i*5
 
@@ -242,10 +256,12 @@ def print_server_timer(expstats, dir):
                 temp2 = np.random.exponential(scale=1/lambda_hat, size=len(adjusted_values))
                 # res = stats.cramervonmises(temp, "expon")
                 res = stats.cramervonmises_2samp(np.array(adjusted_values), temp2)
+                loc, scale = stats.expon.fit(adjusted_values)
+                res2 = stats.cramervonmises(adjusted_values, 'expon', args=(loc, scale))
 
                 # Add run index to each row (to distinguish runs in the CSV)
                 for perc, theo, samp in qq_data:
-                    all_qq_data.append([qps, run, percentile_to_remove_upper, perc, theo, samp, res.pvalue])
+                    all_qq_data.append([qps, run, percentile_to_remove_upper, perc, theo, samp, res2.pvalue, res.pvalue])
                 
 
                 # # Perform the Anderson-Darling test
@@ -255,12 +271,11 @@ def print_server_timer(expstats, dir):
                 # print(sig_level)
         
     # Step 5: Write the results to a CSV file
-    output_file = os.path.join(path, "all_qq_data_timer.csv")
-    with open(output_file, mode='w') as file:
+    output_file = os.path.join(path, "all_qq.csv")
+    with open(output_file, mode='w', newline='') as file:
         writer = csv.writer(file)
-
         # Write header
-        writer.writerow(["Lambda", "Run", "Percentile to Remove", "Percentile", "Theoretical Quantile", "Sample Quantile", "P value"])
+        writer.writerow(["Lambda", "Run", "Percentile to Remove", "Percentile", "Theoretical Quantile", "Sample Quantile", "P value 1 sample", "P value 2 sample"])
 
         # Write all Q-Q data
         for row in all_qq_data:
@@ -467,8 +482,8 @@ def print_avg(expstats, dir):
     for key in expstats[0].keys():
         temp = key
         break
-
-    max_runs= (max([int(k) for k in expstats[0][temp]['arr'].keys()])) + 1
+    
+    max_runs= (max([int(k) for k in expstats[0][str(temp)]['arr'].keys()])) + 1
   
     # Write the dictionary to the CSV file
     with open(avg_file, 'w', newline='') as csvfile:
