@@ -32,6 +32,19 @@ EOF
 
 sudo apt-get update
 sudo apt-get install linux-image-$(uname -r)-dbgsym
+
+# Cloudlab 18.04 ubuntu dependencies for parser script
+
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt-get update
+sudo apt-get install python3.8
+
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.8 get-pip.py
+
+python3.8 -m pip install pandas
+python3.8 -m pip install scipy
+python3.8 -m pip install statsmodels
 ```
 
 # Compile source code for http server

@@ -18,13 +18,15 @@ import statsmodels.api as sm
 statss = {}
 warmup=20
 queriespersecond=10
+cores=40
 
 def get_exp(name):
     return name.split("/")[-1]
 
 def print_idle_time_systemtap(expstats, dir):
-
+    print("irtaaaaaa")
     path = os.path.join(dir, "results")
+    print(path)
 
     os.makedirs(path, exist_ok=True)  # Create all intermediate directories if they don't exist
     
@@ -153,7 +155,7 @@ def print_idle_time_systemtap(expstats, dir):
             for sample in to_print_tres[state]:
                 row.append(float(sample))
             writer.writerow(row)     
-
+    print("efiaaaaaaaa")
 
 def print_server_timer(expstats, dir):
     path = os.path.join(dir, "results")
@@ -465,11 +467,20 @@ def print_utilization(expstats, dir):
     with open(util_file, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         
+        row1 = []
+        row2 = []
         # Write the header row (QPS values as columns)
-        writer.writerow(expstats[0].keys())
+        for key in expstats[0].keys():
+            row1.append(key)
+            for i in range(cores):
+                row1.append("")
+                row2.append(i)
+        writer.writerow(row1)
+        writer.writerow(row2)
         # Write the data rows (align values by adding empty strings for shorter lists)
         for i in range(max_runs):
-            row = [expstats[0][qps]['util'][i] if i < len(expstats[0][qps]['util']) else '' for qps in expstats[0].keys()]
+            # row = [statistics.mean(expstats[0][qps]['util'][i]) for tmp in expstats[0][qps]["util"][i] for qps in expstats[0].keys()]
+            row = [statistics.mean(expstats[0][qps]["util"][i][core]) for qps in expstats[0].keys() for core in expstats[0][qps]["util"][i]]
             writer.writerow(row)
 
 def print_avg(expstats, dir):
@@ -521,7 +532,7 @@ def print_avg(expstats, dir):
             writer.writerow(row)
     
 def print_to_file(expstats, dir):
-
+    print("irtaaaaaaaaaaaaa")
     newpath=os.path.join(dir, "results")
     if not os.path.exists(newpath):
         os.makedirs(newpath)
@@ -532,8 +543,9 @@ def print_to_file(expstats, dir):
     print_response(expstats, dir)
     print_server_timer(expstats, dir)
     print_idle_time_systemtap(expstats, dir)
-
+    print("efiaaaaaa")
 def get_idle_time_systemtap(dir,expstats):
+    print("irtaaaaaaa")
     idle_file=os.path.join(dir, "systemtap_idle.log")
 
     if "stap-idle" not in  expstats[get_query(dir)]:
@@ -586,9 +598,64 @@ def get_idle_time_systemtap(dir,expstats):
             elif "IDLE_OFF" in state and tempcpu[int(cpu)]!=0:
                 expstats[get_query(dir)]["stap-idle"][int(get_run(dir))-1][str(cpu)].append((int(ts) - int(tempcpu[int(cpu)]))/1000)
                 tempcpu[int(cpu)] = 0
+            
     expstats[get_query(dir)]["stap-idle"][int(get_run(dir))-1]['start_ts'] = start_ts
     expstats[get_query(dir)]["stap-idle"][int(get_run(dir))-1]['end_ts'] = end_ts 
 
+def get_active_time_systemtap(dir,expstats):
+    print("irtaaaaaaa")
+    idle_file=os.path.join(dir, "systemtap_idle.log")
+
+    if "stap-active" not in  expstats[get_query(dir)]:
+        expstats[get_query(dir)]["stap-active"] = {}
+
+    if not os.path.isfile(idle_file) or expstats[get_query(dir)]["avg"][-1] == 0:
+        expstats[get_query(dir)]["stap-active"][int(get_run(dir))-1] = {}
+        return
+    
+    expstats[get_query(dir)]["stap-active"][int(get_run(dir))-1] = {}
+
+    # Open the file and read lines
+    with open(idle_file, 'r') as file:
+        lines = file.readlines()
+    
+    start_ts = 0
+    flag=0
+    tempcpu={}
+    for i in range(40):
+        tempcpu[i]=0
+        expstats[get_query(dir)]["stap-active"][int(get_run(dir))-1][str(i)] = []
+    expstats[get_query(dir)]["stap-active"][int(get_run(dir))-1][all] = []
+
+    for line in lines:
+        if "TEST_OFF" in line:
+            end_ts = int(line.split()[0])
+
+    for line in lines:
+        if "TEST_START" in line:
+            start_ts = int(line.split()[0])
+            flag=1
+        elif not flag:
+            continue
+
+        if flag:
+            
+            if not "All" in line and not "all-idle" in line:
+                ts = int(line.split()[0])
+                cpu = line.split()[1]
+                state = line.split()[2]
+            
+            if ts < start_ts or ts > end_ts:
+                continue
+            elif "TEST_ON" in state:
+                tempcpu[int(cpu)] = int(ts)
+            elif "TEST_OFF" in state and tempcpu[int(cpu)]!=0:
+                expstats[get_query(dir)]["stap-active"][int(get_run(dir))-1][str(cpu)].append((int(ts) - int(tempcpu[int(cpu)]))/1000)
+                tempcpu[int(cpu)] = 0
+            
+    expstats[get_query(dir)]["stap-idle"][int(get_run(dir))-1]['start_ts'] = start_ts
+    expstats[get_query(dir)]["stap-idle"][int(get_run(dir))-1]['end_ts'] = end_ts 
+    
 def get_server_timer_samples(dir,expstats):
 
     timer_file=os.path.join(dir, "thread_0_times.log")
@@ -663,24 +730,32 @@ def get_utilization(dir,expstats):
     tmp=[]
     util_file=os.path.join(dir, "mpstat.log")
     if "util" not in  expstats[get_query(dir)]:
-        expstats[get_query(dir)]["util"] = []
+        expstats[get_query(dir)]["util"] = {}
+    
+    expstats[get_query(dir)]["util"][int(get_run(dir))-1] = {}
+
+    for i in range(cores):
+        expstats[get_query(dir)]["util"][int(get_run(dir))-1][str(i)]=[]
     
     # check if client file exists and contains the key Latency
     if not os.path.isfile(util_file) or expstats[get_query(dir)]["avg"][-1] == 0:
-        expstats[get_query(dir)]["util"].append(float(0))
+        for i in range(cores):
+            expstats[get_query(dir)]["util"][int(get_run(dir))-1][str(i)].append(float(0))
         return
     
     # If file exists in the right format get the idle time of core zero only skip 2 first and last measurement
     with open(util_file) as f:    
         for line in f:            
-            if not "Average" in line and len(line.split()) > 2 and str(line.split()[2]) == "0":
-                tmp.append(100 - float(line.split()[-1]))
+            if len(line.split()) > 1 and not "Average" in line and not "CPU" in line and not "all" in line:
+                expstats[get_query(dir)]["util"][int(get_run(dir))-1][str(line.split()[2])].append(float(100 - float(line.split()[-1])))
 
-    tmp.pop(0)
-    tmp.pop(0)
-    tmp.pop(-1)
-
-    expstats[get_query(dir)]["util"].append(statistics.mean(tmp))  
+    for i in range(cores):
+        expstats[get_query(dir)]["util"][int(get_run(dir))-1][str(i)].pop(0)
+        expstats[get_query(dir)]["util"][int(get_run(dir))-1][str(i)].pop(0)
+        expstats[get_query(dir)]["util"][int(get_run(dir))-1][str(i)].pop(-1)
+    
+    
+    # expstats[get_query(dir)]["util"].append(statistics.mean(tmp))  
 
 def get_avg_response_time(dir,expstats):
 
@@ -714,21 +789,27 @@ def get_avg_response_time(dir,expstats):
                                                
                 avg=line.split()[1]
                 percentile=line.split()[3]
-                
+                qps = next(f).split()[1]
+
                 # Extract all matches as a list
                 floatsavg = re.findall(r"-?\d+\.\d+", avg)
                 floatspercentile = re.findall(r"-?\d+\.\d+", percentile)
+                floatqps = re.findall(r"-?\d+\.\d+", qps)
 
-                if re.split("[^a-zA-Z]*", avg) == "s" : floatsavg=floatsavg*1000
-                if re.split("[^a-zA-Z]*", avg) == "us" : floatsavg=floatsavg/1000 
+                if "s" in re.split("[^a-zA-Z]*", avg): 
+                    floatsavg[0]= float(floatsavg[0])*1000
+
+                if "us" in re.split("[^a-zA-Z]*", avg): floatsavg[0]=float(floatsavg[0])/1000 
                
-                if re.split("[^a-zA-Z]*", percentile) == "s" : floatspercentile=floatspercentile*1000
-                if re.split("[^a-zA-Z]*", percentile) == "us" : floatspercentile=floatspercentile/1000 
+                if "s" in re.split("[^a-zA-Z]*", percentile): floatspercentile[0]=float(floatspercentile[0])*1000
+                if "us" in re.split("[^a-zA-Z]*", percentile): floatspercentile[0]=float(floatspercentile[0])/1000 
                 
-                qps = next(f).split()[1]
-                               
+                
+                if "k" in re.split("[^a-zA-Z]*", qps): 
+                    floatqps[0]=float(floatqps[0])*1000
+                           
                 expstats[query]["avg"].append(float(floatsavg[0]))
-                expstats[query]["qps"].append(float(qps))
+                expstats[query]["qps"].append(float(floatqps[0]))
                 expstats[query]["99th"].append(float(floatspercentile[0]))
                 return
         
