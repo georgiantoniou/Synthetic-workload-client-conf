@@ -223,6 +223,9 @@ void *handle_client(void *arg) {
             // Simulate service time
             for (int i=0; i< request_count; i++)
             {   
+                if (i != 0)
+                    start_timer(data);
+                
                 double delay = gsl_ran_exponential(data->rng, 1 / lambda);
                 busy_wait_microseconds((int)(delay * 1e6)); // Convert seconds to microseconds
                 
