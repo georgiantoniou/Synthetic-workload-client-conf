@@ -204,22 +204,38 @@ void *handle_client(void *arg) {
         char buffer[BUFFER_SIZE];
         ssize_t bytes_read;
         while ((bytes_read = read(client_socket, buffer, sizeof(buffer) - 1)) > 0) {
-            buffer[bytes_read] = '\0';  // Null-terminate the read data
-
-            // Simulate service time
-            double delay = gsl_ran_exponential(data->rng, 1 / lambda);
-            
             start_timer(data);
-            busy_wait_microseconds((int)(delay * 1e6)); // Convert seconds to microseconds
-            stop_timer(data);
-            data->theoritical_delays[data->num_records%MAX_RECORDS_PER_THREAD] = delay;
+            buffer[bytes_read] = '\0';  // Null-terminate the read data
+            
+            //get number of requests read
+            int request_count = 0;
+            const char *search_start = buffer;
+            const char *found;
 
-            // Send the response
-            int bytes_written = write(client_socket, RESPONSE, strlen(RESPONSE));
-            if (bytes_written < 0) {
-                perror("write failed");
-                break;
-            } 
+            while ((found = strstr(search_start, "\r\n\r\n")) != NULL) {
+                request_count++;
+                search_start = found + 4; // Move past the delimiter
+                if (search_start >= buffer + bytes_read) {
+                    break; // prevent reading out of the buffer.
+                }
+            }
+            
+            // Simulate service time
+            for (int i=0; i< request_count; i++)
+            {   
+                double delay = gsl_ran_exponential(data->rng, 1 / lambda);
+                busy_wait_microseconds((int)(delay * 1e6)); // Convert seconds to microseconds
+                
+                data->theoritical_delays[data->num_records%MAX_RECORDS_PER_THREAD] = delay;
+
+                // Send the response
+                int bytes_written = write(client_socket, RESPONSE, strlen(RESPONSE));
+                if (bytes_written < 0) {
+                    perror("write failed");
+                    break;
+                } 
+                stop_timer(data);
+            }
         }
         if (bytes_read < 0) {
             perror("read failed");

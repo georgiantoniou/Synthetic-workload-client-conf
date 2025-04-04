@@ -14,6 +14,7 @@
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
+//#define BUFFER_SIZE 35 // exactly as big as one requests wrk2 in this case always produce same request
 #define RESPONSE "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World\r\n"
 
 long long current_time_microseconds(void);
@@ -48,6 +49,7 @@ typedef struct {
 // Function to generate an exponentially distributed random variable
 double generate_exponential(gsl_rng *rng, double lambda) {
     return gsl_ran_exponential(rng, 1 / lambda);
+    
 }
 
 // Function to sleep for a specified duration in microseconds using nanosleep
@@ -130,20 +132,39 @@ void *handle_client(void *arg) {
         // Process the client connection
         char buffer[BUFFER_SIZE];
         ssize_t bytes_read;
+        char *request_start;
+        char *request_end;
+
         while ((bytes_read = read(client_socket, buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytes_read] = '\0';  // Null-terminate the read data
-
             
-            // Simulate service time
-            double delay = generate_exponential(rng, lambda);
-            busy_wait_microseconds((int)(delay * 1e6)); // Convert seconds to microseconds
-           
-            // Send the response
-            int bytes_written = write(client_socket, RESPONSE, strlen(RESPONSE));
-            if (bytes_written < 0) {
-                perror("write failed");
-                break;
-            } 
+            //get number of requests read
+            int request_count = 0;
+            const char *search_start = buffer;
+            const char *found;
+
+            while ((found = strstr(search_start, "\r\n\r\n")) != NULL) {
+                request_count++;
+                search_start = found + 4; // Move past the delimiter
+                if (search_start >= buffer + bytes_read) {
+                    break; // prevent reading out of the buffer.
+                }
+            }
+            
+            for (int i=0; i< request_count; i++)
+            {    
+                // Simulate service time
+                // double delay = generate_exponential(rng, lambda);
+                double delay = gsl_ran_exponential(data->rng, 1 / lambda);
+                busy_wait_microseconds((int)(delay * 1e6)); // Convert seconds to microseconds
+            
+                // Send the response
+                int bytes_written = write(client_socket, RESPONSE, strlen(RESPONSE));
+                if (bytes_written < 0) {
+                    perror("write failed");
+                    break;
+                } 
+            }
         }
         if (bytes_read < 0) {
             perror("read failed");
