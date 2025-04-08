@@ -8,7 +8,7 @@ SERVER_NODE="node1"
 SEED=1234
 QPS="10"
 queries="10"
-SERVICE_RATE="100000 10000 1000 100"
+SERVICE_RATE="100000" #50000 33333 25000 20000 10000 1000 100"
 CONNECTIONS=1
 THREADS=1
 
@@ -68,138 +68,6 @@ fi
 runs=$1
 duration=$2
 
-echo "EXP: Client default + server exp $runs $duration HOME_DIR=$HOME_DIR QPS=$QPS SERVICE_RATE=$SERVICE_RATE CONNECTIONS=$CONNECTIONS THREADS=$THREADS"
-# Create the experiment directory
-
-EXP_DIR=~/data/"client=def-server=def"
-
-mkdir "$EXP_DIR"
-
-for (( i=1 ; i<=$runs ; i++ )); 
-do
-    for service in $SERVICE_RATE;
-    do
-        # Make this run output
-        mkdir $EXP_DIR"/run-"$i"-service-"$service
-
-        # Start server
-        run_server $SERVER_NODE $SERVER_DEF_PATH $service $THREADS $SEED
-       
-        # Start utilization
-        run_mpstat $duration $SERVER_NODE
-
-        # Start systemtap idle time monitoring
-
-        run_systemtap_idle $SERVER_NODE
-
-        # Start Client
-        command="$CLIENT_PATH -t$THREADS -c$CONNECTIONS -D exp -d"$duration"s -R$queries http://"$SERVER_NODE":8080"
-        $command &> "$EXP_DIR/run-$i-service-$service/client.log"
-        
-        sleep 5
-
-        # Check whether client has finished successfully
-        res=`cat "$EXP_DIR/run-$i-service-$service/client.log" | grep "Latency" | wc -l`
-        
-        while [[ "$res" == "0" ]]; 
-        do
-            # Kill processes
-            kill_proc $SERVER_NODE
-            
-            # Start server
-            run_server $SERVER_NODE $SERVER_DEF_PATH $service $THREADS $SEED
-
-            # Start utilization
-            run_mpstat $duration $SERVER_NODE
-
-            # Start systemtap idle time monitoring
-            run_systemtap_idle $SERVER_NODE
-
-            # Start Client
-            $command &> "$EXP_DIR/run-$i-service-$service/client.log"
-
-            sleep 5
-
-            # Check whether client has finished successfully
-            res=`cat "$EXP_DIR/run-$i-service-$service/client.log" | grep "Latency" | wc -l`
-
-        done
-
-        # Kill processes
-        kill_proc $SERVER_NODE
-
-        sleep 5
-
-        # Move data to client
-        scp ganton12@$SERVER_NODE:~/mpstat.log "$EXP_DIR/run-$i-service-$service/"
-        scp ganton12@$SERVER_NODE:~/systemtap_idle.log "$EXP_DIR/run-"$i"-service-"$service"/"
-    done
-
-done
-##############################################################################################################################################################
-
-echo "EXP: Client default, response script + server exp $runs $duration HOME_DIR=$HOME_DIR QPS=$QPS SERVICE_RATE=$SERVICE_RATE CONNECTIONS=$CONNECTIONS THREADS=$THREADS"
-# Create the experiment directory
-
-EXP_DIR=~/data/"client=defrsp-server=def"
-
-mkdir "$EXP_DIR"
-
-for (( i=1 ; i<=$runs ; i++ )); 
-do
-    for service in $SERVICE_RATE;
-    do
-        #Make this run output
-        mkdir $EXP_DIR"/run-"$i"-service-"$service
-    
-        # Start server
-        run_server $SERVER_NODE $SERVER_DEF_PATH $service $THREADS $SEED
-       
-        # Start utilization
-        run_mpstat $duration $SERVER_NODE
-
-        #Start Client
-        command="$CLIENT_PATH -t$THREADS -c$CONNECTIONS -D exp -d"$duration"s -R$queries -s $HOME_DIR/wrk2/log_response_time.lua http://"$SERVER_NODE":8080" 
-        $command &> "$EXP_DIR/run-$i-service-$service/client.log"
-
-        sleep 5
-        
-        # Check whether client has finished successfully
-        res=`cat "$EXP_DIR/run-$i-service-$service/client.log" | grep "Latency" | wc -l`
-
-        while [[ "$res" == "0" ]]; 
-        do
-            # Kill processes
-            kill_proc $SERVER_NODE
-            
-            # Start server
-            run_server $SERVER_NODE $SERVER_DEF_PATH $service $THREADS $SEED
-
-            # Start utilization
-            run_mpstat $duration $SERVER_NODE
-
-            # Start Client
-            $command &> "$EXP_DIR/run-$i-service-$service/client.log"
-
-            sleep 5
-
-            # Check whether client has finished successfully
-            res=`cat "$EXP_DIR/run-$i-service-$service/client.log" | grep "Latency" | wc -l`
-        done
-
-        # Kill processes
-        kill_proc $SERVER_NODE
-
-        sleep 5
-
-        # Move data to client
-        scp ganton12@$SERVER_NODE:~/mpstat.log "$EXP_DIR/run-$i-service-$service/"
-        mv $HOME_DIR/response_times_thread_* "$EXP_DIR/run-$i-service-$service/"
-
-    done
-
-done
-
 ##############################################################################################################################################################
 
 echo "EXP: Client default server exp,timer $runs $duration HOME_DIR=$HOME_DIR QPS=$QPS SERVICE_RATE=$SERVICE_RATE CONNECTIONS=$CONNECTIONS THREADS=$THREADS"
@@ -209,7 +77,7 @@ EXP_DIR=~/data/"client=def-server=timer"
 
 mkdir "$EXP_DIR"
 
-for (( i=1 ; i<=$runs ; i++ )); 
+for (( i=5 ; i<=$runs ; i++ )); 
 do
     for service in $SERVICE_RATE;
     do
@@ -261,6 +129,7 @@ do
         # Move data to client
         scp ganton12@$SERVER_NODE:~/mpstat.log "$EXP_DIR/run-$i-service-$service/"
         scp ganton12@$SERVER_NODE:~/thread_* "$EXP_DIR/run-$i-service-$service/" 
+        ssh ganton12@$SERVER_NODE "sudo rm ~/thread_*"
     done
 
 done

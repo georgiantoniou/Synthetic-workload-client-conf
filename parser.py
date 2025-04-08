@@ -211,10 +211,10 @@ def print_server_timer(expstats, dir):
     for qps in expstats[0]:
         for run in expstats[0][qps]['server-timer-actual']:
             temp=expstats[0][qps]['server-timer-actual'][run]
-            # # remove warmed up queries from temp
-            # if temp:
-            #     for i in range(warmup*queriespersecond):
-            #         temp.pop(0)
+            # remove warmed up queries from temp
+            if temp:
+                for i in range(warmup*queriespersecond):
+                    temp.pop(0)
             for i in range(5):    
                 
                 if not temp:
@@ -483,6 +483,73 @@ def print_utilization(expstats, dir):
             row = [statistics.mean(expstats[0][qps]["util"][i][core]) for qps in expstats[0].keys() for core in expstats[0][qps]["util"][i]]
             writer.writerow(row)
 
+def print_turbostat_residency(expstats, dir):
+    
+    path = os.path.join(dir, "results")
+    turbostat_file = os.path.join(path, "turbostat-hw-cstate.csv")
+
+    # remove first and last measurements
+    for queries in expstats[0]:
+        for runs in expstats[0][queries]["cstates-turbostat"]:
+            for core, values in expstats[0][queries]["cstates-turbostat"][runs].items():
+                for metric, value in expstats[0][queries]["cstates-turbostat"][runs][core].items():                   
+                    expstats[0][queries]["cstates-turbostat"][runs][core][metric].pop(0)
+                    expstats[0][queries]["cstates-turbostat"][runs][core][metric].pop(0)
+                    expstats[0][queries]["cstates-turbostat"][runs][core][metric].pop(-1)
+    
+    result = {}
+    # calculate average for each metric each run and core 0
+    for queries in expstats[0]:
+        result[queries] = {}
+        for runs in expstats[0][queries]["cstates-turbostat"]:
+            # print(expstats[0][queries]["cstates-turbostat"][runs])
+            for metric, value in expstats[0][queries]["cstates-turbostat"][runs][0].items():
+                if metric not in result[queries]:
+                    result[queries][metric] = []
+                result[queries][metric].append(statistics.mean(expstats[0][queries]["cstates-turbostat"][runs][0][metric]))
+    
+    with open(turbostat_file, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        row = []
+        row.append("")
+        row.append("C0")
+        row.append("C1")
+        row.append("C6")
+        writer.writerow(row)
+        for queries in result:
+            row=[]
+            c6 = statistics.mean(result[queries]['CPU%c6'])
+            c1 = statistics.mean(result[queries]['CPU%c1'])
+            c0 = 100 - c1 - c6
+            row.append(queries)
+            row.append(c0)
+            row.append(c1)
+            row.append(c6)
+            writer.writerow(row)
+
+    turbostat_sw_file = os.path.join(path, "turbostat-sw-cstate.csv")
+    with open(turbostat_sw_file, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        row = []
+        row.append("")
+        row.append("C0")
+        row.append("C1")
+        row.append("C1E")
+        row.append("C6")
+        writer.writerow(row)
+        for queries in result:
+            row=[]
+            c6 = statistics.mean(result[queries]['C6%'])
+            c1e = statistics.mean(result[queries]['C1E%']) 
+            c1 = statistics.mean(result[queries]['C1%'])
+            c0 = 100 - c1 - c1e - c6
+            row.append(queries)
+            row.append(c0)
+            row.append(c1)
+            row.append(c1e)
+            row.append(c6)
+            writer.writerow(row)
+            
 def print_avg(expstats, dir):
     path = os.path.join(dir, "results")
     avg_file = os.path.join(path, "avg.csv")
@@ -537,6 +604,7 @@ def print_to_file(expstats, dir):
     if not os.path.exists(newpath):
         os.makedirs(newpath)
     
+    print_turbostat_residency(expstats, dir)
     print_avg(expstats, dir)
     print_utilization(expstats, dir)
     print_arrival(expstats, dir)
@@ -757,6 +825,55 @@ def get_utilization(dir,expstats):
     
     # expstats[get_query(dir)]["util"].append(statistics.mean(tmp))  
 
+def get_turbostat_residency(dir, expstats):
+
+    turbostat_file=os.path.join(dir, "turbostat.log")
+    if "cstates-turbostat" not in  expstats[get_query(dir)]:
+        expstats[get_query(dir)]["cstates-turbostat"] = {}
+           
+    if not os.path.isfile(turbostat_file) or expstats[get_query(dir)]["avg"][-1] == 0:
+        expstats[get_query(dir)]["cstates-turbostat"][int(get_run(dir))-1] = {}
+        return
+   
+    expstats[get_query(dir)]["cstates-turbostat"][int(get_run(dir))-1] = {}
+    
+    # Open the turbostat output file for reading
+    with open(turbostat_file, 'r') as file:
+
+        # Read all lines from the file
+        lines = file.readlines()
+
+    # Extract header and data rows
+    header = lines[0].split()
+    data_rows = [line.split() for line in lines[1:]]
+    
+    # Iterate over data rows
+    for row in data_rows:
+
+        if "Package" in row:
+            continue
+
+        # Extract core and data values
+        if row[2] == "-":
+            core = -1
+        else:
+            core = int(row[2])
+
+        data_values = {header[i]: float(row[i]) for i in range(3, len(row))}
+
+        # Check if the core already exists in the dictionary
+        #print(str(j) + " " + str(core))
+    
+        if core in expstats[get_query(dir)]["cstates-turbostat"][int(get_run(dir))-1]:
+            # Append new values to the existing dictionary
+            existing_values = expstats[get_query(dir)]["cstates-turbostat"][int(get_run(dir))-1][core]
+            for key, value in data_values.items():
+                existing_values[key].append(value)
+        else:
+            # Create a new entry with the current values
+            expstats[get_query(dir)]["cstates-turbostat"][int(get_run(dir))-1][core] = {key: [value] for key, value in data_values.items()}
+
+    
 def get_avg_response_time(dir,expstats):
 
     client_file=os.path.join(dir, "client.log")
@@ -817,11 +934,13 @@ def get_avg_response_time(dir,expstats):
 def get_raw_data(dir, expstats):
     
     get_avg_response_time(dir, expstats)
+    get_turbostat_residency(dir, expstats)
     get_utilization(dir,expstats)
     get_arrival_samples(dir, expstats)
     get_response_samples(dir, expstats)
     get_server_timer_samples(dir,expstats)
     get_idle_time_systemtap(dir,expstats)
+
 
 def get_run(dir):
     return dir.split("-")[-3]
