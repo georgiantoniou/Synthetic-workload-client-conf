@@ -77,7 +77,7 @@ duration=$2
 echo "EXP: Client default + server exp $runs $duration HOME_DIR=$HOME_DIR QPS=$QPS SERVICE_RATE=$SERVICE_RATE CONNECTIONS=$CONNECTIONS THREADS=$THREADS"
 # Create the experiment directory
 
-for (( i=0 ; i<=$runs ; i++ )); 
+for (( i=1 ; i<=$runs ; i++ )); 
 do
     for util in $QPS;
     do

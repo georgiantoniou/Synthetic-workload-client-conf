@@ -264,7 +264,7 @@ do
         # Move data to client
         scp ganton12@$SERVER_NODE:~/mpstat.log "$EXP_DIR/run-$i-service-$service/"
         scp ganton12@$SERVER_NODE:~/thread_* "$EXP_DIR/run-$i-service-$service/" 
-        exit;
+    
     done
 
 done

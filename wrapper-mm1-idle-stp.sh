@@ -8,7 +8,8 @@ SERVER_NODE="node1"
 SEED=1234
 QPS="0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5"
 queries=""
-SERVICE_RATE="100000 20000 10000 1000 100"
+SERVICE_RATE="166666 62500 39215 28571 22222 10752 1039 103"
+EXPECTED_SERVICE_RATE="100000 50000 33333 25000 20000 10000 1000 100"
 CONNECTIONS=1
 THREADS=1
 
@@ -71,21 +72,25 @@ duration=$2
 echo "EXP: Client default + server exp $runs $duration HOME_DIR=$HOME_DIR QPS=$QPS SERVICE_RATE=$SERVICE_RATE CONNECTIONS=$CONNECTIONS THREADS=$THREADS"
 # Create the experiment directory
 
-EXP_DIR=~/data/"client=def-server=def"
+# EXP_DIR=~/data/"client=def-server=def"
 
-mkdir "$EXP_DIR"
+# mkdir "$EXP_DIR"
 
 for (( i=1 ; i<=$runs ; i++ )); 
 do
+    
     for util in $QPS;
     do
         EXP_DIR=~/data/"client=def-server=def-util-"$util
         mkdir "$EXP_DIR"
-
+        j=1
         for service in $SERVICE_RATE;
         do
-
-            queries=$(echo "" | awk -v a="$util" -v b="$service" '{print (1000000*a)/(1000000/b)}')
+            # queries=$(echo "" | awk -v a="$util" -v b="$service" '{print int((1000000*a)/(1000000/b))}')
+            queries=$(echo "$EXPECTED_SERVICE_RATE"| awk -v a="$j" '{print $a}' | awk -v a="$util" '{print int((1000000*a)/(1000000/$1))}')
+            echo "$queries"
+            ((j=j+1))
+            
             # Make this run output
             mkdir $EXP_DIR"/run-"$i"-service-"$service
 
@@ -101,6 +106,7 @@ do
 
             # Start Client
             command="$CLIENT_PATH -t$THREADS -c$CONNECTIONS -D exp -d"$duration"s -R$queries http://"$SERVER_NODE":8080"
+            echo "$command"
             $command &> "$EXP_DIR/run-$i-service-$service/client.log"
             
             sleep 5
@@ -140,6 +146,7 @@ do
             # Move data to client
             scp ganton12@$SERVER_NODE:~/mpstat.log "$EXP_DIR/run-$i-service-$service/"
             scp ganton12@$SERVER_NODE:~/systemtap_idle.log "$EXP_DIR/run-"$i"-service-"$service"/"
+           
         done
     done
 done
