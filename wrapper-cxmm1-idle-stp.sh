@@ -10,8 +10,8 @@ QPS="0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5"
 queries=""
 SERVICE_RATE="13514 10752 2087 1039 208 103"
 EXPECTED_SERVICE_RATE="12500 10000 2000 1000 200 100"
-CONNECTIONS=1
-THREADS=1
+CONNECTIONS=10
+THREADS=10
 
 kill_proc ()
 {
@@ -146,6 +146,8 @@ do
             # Move data to client
             scp ganton12@$SERVER_NODE:~/mpstat.log "$EXP_DIR/run-$i-service-$service/"
             scp ganton12@$SERVER_NODE:~/systemtap_idle.log "$EXP_DIR/run-"$i"-service-"$service"/"
+            sleep 5 
+            ssh ganton12@$SERVER_NODE "sudo rm ~/systemtap_idle.log" 
            
         done
     done

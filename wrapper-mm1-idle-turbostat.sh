@@ -8,7 +8,8 @@ SERVER_NODE="node1"
 SEED=1234
 QPS="0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5"
 queries="" # changed queries to evaluate interesting regions
-SERVICE_RATE="100000 20000 10000 1000 100" # change to evaluate representative synthetic workloads
+SERVICE_RATE="13514 10752 2087 1039 208 103"
+EXPECTED_SERVICE_RATE="12500 10000 2000 1000 200 100"
 CONNECTIONS=1
 THREADS=1
 
@@ -83,11 +84,15 @@ do
     do
         EXP_DIR=~/data/"client=def-server=def-util-"$util
         mkdir "$EXP_DIR"
-
+        j=1
         for service in $SERVICE_RATE;
         do
+
+            queries=$(echo "$EXPECTED_SERVICE_RATE"| awk -v a="$j" '{print $a}' | awk -v a="$util" '{print int((1000000*a)/(1000000/$1))}')
+            echo "$queries"
+            ((j=j+1))
             
-            queries=$(echo "" | awk -v a="$util" -v b="$service" '{print (1000000*a)/(1000000/b)}')
+            # queries=$(echo "" | awk -v a="$util" -v b="$service" '{print (1000000*a)/(1000000/b)}')
             
             # Make this run output
             mkdir $EXP_DIR"/run-"$i"-service-"$service

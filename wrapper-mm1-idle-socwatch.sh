@@ -8,8 +8,8 @@ SERVER_NODE="node1"
 SEED=1234
 QPS="0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5"
 queries=""
-SERVICE_RATE="166666 62500 39215 28571 22222 10752 1039 103"
-EXPECTED_SERVICE_RATE="100000 50000 33333 25000 20000 10000 1000 100"
+SERVICE_RATE="13514 10752 2087" #1039 208 103"
+EXPECTED_SERVICE_RATE="12500 10000 2000" #1000 200 100"
 CONNECTIONS=1
 THREADS=1
 
@@ -18,6 +18,7 @@ kill_proc ()
     ssh ganton12@$1 "sudo pkill -9 http_server_exp"
     ssh ganton12@$1 "sudo pkill -9 mpstat"
     ssh ganton12@$1 "sudo pkill -9 stap"
+    ssh ganton12@$1 "sudo pkill -9 socwatch"
 }
 
 run_server ()

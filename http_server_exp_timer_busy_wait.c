@@ -53,7 +53,9 @@ typedef struct {
 void handle_signal(int sig) {
     server_running = 0;  // Notify threads to stop
     close(server_socket);  // Close server socket
+    pthread_mutex_lock(&lock);
     pthread_cond_broadcast(&cond);  // Wake all threads
+    pthread_mutex_unlock(&lock); 
 }
 
 // Start timing a request
@@ -248,6 +250,7 @@ void *handle_client(void *arg) {
     }
    
     // Save execution times upon termination
+    printf("irtaaaaaaaaaaaa\n");
     save_execution_times(data->thread_id, data);
     free(data->execution_times);
     free(data->theoritical_delays);
@@ -318,8 +321,13 @@ int main(int argc, char *argv[]) {
     while (server_running) {
         int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
         if (client_socket < 0) {
-            perror("accept failed");
-            continue;
+            if (server_running)
+            {
+                perror("accept failed");
+                continue;
+            }
+            else
+                break;
         }
 
         // Lock and add the client to the queue

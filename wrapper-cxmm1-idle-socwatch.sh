@@ -10,14 +10,15 @@ QPS="0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5"
 queries=""
 SERVICE_RATE="13514 10752 2087 1039 208 103"
 EXPECTED_SERVICE_RATE="12500 10000 2000 1000 200 100"
-CONNECTIONS=1
-THREADS=1
+CONNECTIONS=10
+THREADS=10
 
 kill_proc ()
 {
     ssh ganton12@$1 "sudo pkill -9 http_server_exp"
     ssh ganton12@$1 "sudo pkill -9 mpstat"
     ssh ganton12@$1 "sudo pkill -9 stap"
+    ssh ganton12@$1 "sudo pkill -9 socwatch"
 }
 
 run_server ()
@@ -58,6 +59,13 @@ run_systemtap_idle ()
 {
 
     ssh ganton12@$1 "sudo stap $HOME_DIR/idle.stp &> ~/systemtap_idle.log &"
+
+}
+
+run_socwatch_idle ()
+{
+
+    ssh ganton12@$1 "sudo /opt/intel/oneapi/vtune/2025.1/socwatch/x64/socwatch -f cpu-cstate -m -r int -o socwatch -s 40 -t 10 &> /dev/null &"
 
 }
 
@@ -102,7 +110,7 @@ do
 
             # Start systemtap idle time monitoring
 
-            run_systemtap_idle $SERVER_NODE
+            run_socwatch_idle $SERVER_NODE
 
             # Start Client
             command="$CLIENT_PATH -t$THREADS -c$CONNECTIONS -D exp -d"$duration"s -R$queries http://"$SERVER_NODE":8080"
@@ -126,7 +134,7 @@ do
                 run_mpstat $duration $SERVER_NODE
 
                 # Start systemtap idle time monitoring
-                run_systemtap_idle $SERVER_NODE
+                run_socwatch_idle $SERVER_NODE
 
                 # Start Client
                 $command &> "$EXP_DIR/run-$i-service-$service/client.log"
@@ -145,7 +153,9 @@ do
 
             # Move data to client
             scp ganton12@$SERVER_NODE:~/mpstat.log "$EXP_DIR/run-$i-service-$service/"
-            scp ganton12@$SERVER_NODE:~/systemtap_idle.log "$EXP_DIR/run-"$i"-service-"$service"/"
+            scp ganton12@$SERVER_NODE:~/socwatch_trace.csv "$EXP_DIR/run-"$i"-service-"$service"/"
+            sleep 5
+            ssh ganton12@$SERVER_NODE "sudo rm ~/socwatch*"
            
         done
     done

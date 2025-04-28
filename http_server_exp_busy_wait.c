@@ -107,7 +107,7 @@ void *handle_client(void *arg) {
     thread_data *data = (thread_data *)arg;
 
     // Assign thread to a core (thread_id % number_of_cores)
-    int core_id = data->thread_id % sysconf(_SC_NPROCESSORS_ONLN);
+    int core_id = (data->thread_id+10) % sysconf(_SC_NPROCESSORS_ONLN);
     set_thread_affinity(core_id);
         
     pthread_t self = pthread_self();
@@ -227,12 +227,14 @@ int main(int argc, char *argv[]) {
 
     // Create a pool of threads
     pthread_t *thread_pool = malloc(thread_pool_size * sizeof(pthread_t));
+    thread_data *thread_data_array = malloc(thread_pool_size * sizeof(thread_data)); // <--- NEW ARRAY
+
     for (int i = 0; i < thread_pool_size; i++) {
-        thread_data per_thread_data;
-        per_thread_data.rng = gsl_rng_alloc(gsl_rng_default);
-        per_thread_data.seed = seed;
-        per_thread_data.thread_id = i;
-        pthread_create(&thread_pool[i], NULL, handle_client, &per_thread_data);
+        // thread_data per_thread_data;
+        thread_data_array[i].rng = gsl_rng_alloc(gsl_rng_default);
+        thread_data_array[i].seed = seed;
+        thread_data_array[i].thread_id = i;
+        pthread_create(&thread_pool[i], NULL, handle_client, &thread_data_array[i]);
     }
 
     while (1) {
@@ -251,6 +253,7 @@ int main(int argc, char *argv[]) {
         pthread_cond_signal(&cond);
     }
 
+    free(thread_data_array);
     free(thread_pool);
     close(server_socket);
     return 0;

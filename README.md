@@ -77,6 +77,15 @@ One thread, one connection, exponential interarrival time, 20 second duration (1
 
 # Configure Machines
 
+## To disable coalescing
+```
+# Need to reset at each reboot
+sudo ethtool -c enp94s0f1
+sudo ethtool -C enp94s0f1 adaptive-rx off adaptive-tx off
+sudo ethtool -C enp94s0f1 rx-usecs 0 tx-usecs 0
+sudo ethtool -c enp94s0f1
+
+```
 
 # Run experiments
 
