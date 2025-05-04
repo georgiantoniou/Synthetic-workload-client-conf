@@ -107,7 +107,7 @@ void *handle_client(void *arg) {
     thread_data *data = (thread_data *)arg;
 
     // Assign thread to a core (thread_id % number_of_cores)
-    int core_id = (data->thread_id+10) % sysconf(_SC_NPROCESSORS_ONLN);
+    int core_id = (data->thread_id) % sysconf(_SC_NPROCESSORS_ONLN);
     set_thread_affinity(core_id);
         
     pthread_t self = pthread_self();

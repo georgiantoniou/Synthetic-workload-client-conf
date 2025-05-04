@@ -1,15 +1,15 @@
 #!/bin/bash
 
 HOME_DIR=~/Synthetic-workload-client-conf/
-SERVER_DEF_PATH=~/Synthetic-workload-client-conf/http_server_exp_busy_wait
-SERVER_TIMER_PATH=~/Synthetic-workload-client-conf/http_server_exp_timer_busy_wait
+SERVER_DEF_PATH=~/Synthetic-workload-client-conf/http_server_exp_busy_wait_mmc
+SERVER_TIMER_PATH=~/Synthetic-workload-client-conf/http_server_exp_timer_busy_wait_mmc
 CLIENT_PATH=~/Synthetic-workload-client-conf/wrk2/wrk
 SERVER_NODE="node1"
 SEED=1234
 
 kill_proc ()
 {
-    ssh ganton12@$1 "sudo pkill -9 http_server_exp"
+    ssh ganton12@$1 "sudo pkill -2 http_server_exp"
     ssh ganton12@$1 "sudo pkill -9 mpstat"
     ssh ganton12@$1 "sudo pkill -9 stap"
     ssh ganton12@$1 "sudo pkill -9 socwatch"
@@ -20,7 +20,7 @@ run_server ()
 {
     
     # Start server
-    ssh ganton12@$1 "sudo $2 $3 $4 $5 &> /dev/null &"
+    ssh ganton12@$1 "taskset -c 10-19 sudo $2 $3 $4 $5 &> /dev/null &"
 
     sleep 5
 
@@ -33,7 +33,7 @@ run_server ()
         ssh ganton12@$1 "sudo pkill -9 http_server_exp"
         
         # Start server
-        ssh ganton12@$1 "sudo $2 $3 $4 $5 &> /dev/null &"
+        ssh ganton12@$1 "taskset -c 10-19 sudo $2 $3 $4 $5 &> /dev/null &"
 
         sleep 5
 
@@ -91,11 +91,12 @@ do
     
     # Calculate arrival rate based on utilization and service rate
     queries=$(echo "" | awk -v a="$QPS" -v b="$EXPECTED_SERVICE_RATE" '{print int((1000000*a)/(1000000/b))}')
-    ((queries=queries*THREADS))
+    # ((queries=queries*THREADS))
+    ((queries=10*THREADS))
     echo "$queries"
 
     # Start server
-    run_server $SERVER_NODE $SERVER_DEF_PATH $SERVICE_RATE $THREADS $SEED
+    run_server $SERVER_NODE $SERVER_TIMER_PATH $SERVICE_RATE $THREADS $SEED
 
     # Start utilization
     run_mpstat $duration $SERVER_NODE
@@ -107,10 +108,14 @@ do
     # run_turbostat $SERVER_NODE
 
     # Start systemtap idle time monitoring 
-    run_systemtap_idle $SERVER_NODE
+    # run_systemtap_idle $SERVER_NODE
 
     # Start Client
-    command="$CLIENT_PATH -t$THREADS -c$CONNECTIONS -D exp -d"$duration"s -R$queries http://"$SERVER_NODE":8080"
+    if [[ $CONNECTIONS -eq 1 ]]; then
+        command="$CLIENT_PATH -t$CONNECTIONS -c$CONNECTIONS -D exp -d"$duration"s -R$queries http://"$SERVER_NODE":8080"    
+    else
+        command="$CLIENT_PATH -t$CONNECTIONS -c$CONNECTIONS -D exp -d"$duration"s -R$queries http://"$SERVER_NODE":8080"
+    fi
     echo "$command"
     $command &> "$EXP_DIR/client.log"
             
@@ -125,7 +130,7 @@ do
         kill_proc $SERVER_NODE
                 
         # Start server
-        run_server $SERVER_NODE $SERVER_DEF_PATH $SERVICE_RATE $THREADS $SEED
+        run_server $SERVER_NODE $SERVER_TIMER_PATH $SERVICE_RATE $THREADS $SEED
 
         # Start utilization
         run_mpstat $duration $SERVER_NODE
@@ -137,7 +142,7 @@ do
         # run_turbostat $SERVER_NODE
 
         # Start systemtap idle time monitoring 
-        run_systemtap_idle $SERVER_NODE
+        # run_systemtap_idle $SERVER_NODE
 
         # Start Client
         $command &> "$EXP_DIR/client.log"
@@ -159,10 +164,12 @@ do
     scp ganton12@$SERVER_NODE:~/socwatch_trace.csv "$EXP_DIR/"
     scp ganton12@$SERVER_NODE:~/turbostat.log "$EXP_DIR/"
     scp ganton12@$SERVER_NODE:~/systemtap_idle.log "$EXP_DIR/"
+    scp ganton12@$SERVER_NODE:~/thread_* "$EXP_DIR/"
 
     ssh ganton12@$SERVER_NODE "sudo rm ~/mpstat.log"
     ssh ganton12@$SERVER_NODE "sudo rm ~/socwatch*"
     ssh ganton12@$SERVER_NODE "sudo rm ~/turbostat.log"
     ssh ganton12@$SERVER_NODE "sudo rm ~/systemtap_idle.log"
+    ssh ganton12@$SERVER_NODE "sudo rm ~/thread_*"
            
 done

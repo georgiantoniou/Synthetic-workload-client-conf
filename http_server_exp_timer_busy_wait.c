@@ -281,6 +281,7 @@ int main(int argc, char *argv[]) {
     sa.sa_handler = handle_signal;
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGKILL, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
 
     server_addr.sin_family = AF_INET;
