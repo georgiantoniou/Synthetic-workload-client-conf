@@ -6,10 +6,11 @@ SERVER_TIMER_PATH=~/Synthetic-workload-client-conf/http_server_exp_timer_busy_wa
 CLIENT_PATH=~/Synthetic-workload-client-conf/wrk2/wrk
 SERVER_NODE="node1"
 SEED=1234
-QPS="10"
-queries="10"
+QPS="20"
+queries="20"
 # SERVICE_RATE="100000" #50000 33333 25000 20000 10000 1000 100"
-SERVICE_RATE="13514 10752 2087 1039 208 103"
+SERVICE_RATE="21505 13071 10362 2014 1003" 
+# 200 100"
 CONNECTIONS=1
 THREADS=1
 

@@ -57,7 +57,7 @@ run_systemtap_idle ()
 
 run_socwatch_idle ()
 {
-    ssh ganton12@$1 "taskset -c 10-19 sudo /opt/intel/oneapi/vtune/2025.1/socwatch/x64/socwatch -f cpu-cstate -m -r int -o socwatch -s 40 -t 10 &> /dev/null &"
+    ssh ganton12@$1 "taskset -c 10-19 sudo /opt/intel/oneapi/vtune/2025.3/socwatch/x64/socwatch -f cpu-cstate -m -r int -o socwatch -s 40 -t 10 &> /dev/null &"
 }
 
 run_turbostat ()
@@ -98,16 +98,16 @@ do
     run_server $SERVER_NODE $SERVER_DEF_PATH $SERVICE_RATE $THREADS $SEED
 
     # Start utilization
-    run_mpstat $duration $SERVER_NODE
+    # run_mpstat $duration $SERVER_NODE
 
-    # # Start socwatch idle time monitoring
-    # run_socwatch_idle $SERVER_NODE
+    # Start socwatch idle time monitoring
+    run_socwatch_idle $SERVER_NODE
 
     # # Start turbostat idle time monitoring
     # run_turbostat $SERVER_NODE
 
     # Start systemtap idle time monitoring 
-    run_systemtap_idle $SERVER_NODE
+    # run_systemtap_idle $SERVER_NODE
 
     # Start Client
     command="$CLIENT_PATH -t$THREADS -c$CONNECTIONS -D exp -d"$duration"s -R$queries http://"$SERVER_NODE":8080"
@@ -128,16 +128,16 @@ do
         run_server $SERVER_NODE $SERVER_DEF_PATH $SERVICE_RATE $THREADS $SEED
 
         # Start utilization
-        run_mpstat $duration $SERVER_NODE
+        # run_mpstat $duration $SERVER_NODE
 
-        # # Start socwatch idle time monitoring
-        # run_socwatch_idle $SERVER_NODE
+        # Start socwatch idle time monitoring
+        run_socwatch_idle $SERVER_NODE
 
         # # Start turbostat idle time monitoring
         # run_turbostat $SERVER_NODE
 
         # Start systemtap idle time monitoring 
-        run_systemtap_idle $SERVER_NODE
+        # run_systemtap_idle $SERVER_NODE
 
         # Start Client
         $command &> "$EXP_DIR/client.log"
